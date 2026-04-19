@@ -15,8 +15,6 @@ app.use(express.static(path.join(__dirname, "public")));
 const TMP_DIR = path.join(__dirname, "tmp");
 if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR);
 
-const COOKIES_PATH = path.join(__dirname, "cookies.txt");
-
 // Clean old files every 30 minutes
 setInterval(() => {
   try {
@@ -55,7 +53,7 @@ app.get("/api/convert", async (req, res) => {
   try {
     await new Promise((resolve, reject) => {
       const args = [
-        "--cookies", COOKIES_PATH,
+        // NO cookies — let PO token server handle auth
         "-f", "bestaudio/best",
         "-x",
         "--audio-format", "mp3",
@@ -88,7 +86,7 @@ app.get("/api/convert", async (req, res) => {
     const mp3File = candidates.find((f) => f.endsWith(".mp3"));
     if (!mp3File) throw new Error("MP3 file not created");
 
-    // Get the title for the filename
+    // Get title for filename
     let title = mp3File;
     try {
       const r = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${id}&format=json`);
@@ -132,5 +130,4 @@ app.get("/api/download/:filename", (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`DROPBEAT running on port ${PORT}`);
-  console.log(`Cookies: ${fs.existsSync(COOKIES_PATH) ? "LOADED" : "NOT FOUND"}`);
 });
