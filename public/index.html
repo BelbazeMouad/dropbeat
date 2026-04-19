@@ -1,143 +1,380 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>DROPBEAT — Bulk YouTube to MP3</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Space+Mono:wght@400;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --bg: #0a0a0a; --surface: #111; --surface2: #1a1a1a;
-      --border: #2a2a2a; --accent: #e8ff47; --accent2: #ff4757;
-      --text: #f0f0f0; --muted: #666; --success: #39d98a; --warning: #ffa94d;
+
+    /* ── Dark Theme ────────────────────────────────────────────────── */
+    [data-theme="dark"] {
+      --bg: #0c0c0f; --surface: #141418; --surface2: #1c1c22;
+      --border: #2a2a33; --accent: #c4a1ff; --accent2: #ff6b8a;
+      --accent-glow: rgba(196,161,255,0.15); --accent2-glow: rgba(255,107,138,0.15);
+      --text: #eeeef0; --text2: #c8c8d0; --muted: #6b6b7b;
+      --success: #7dffb3; --warning: #ffc46b; --error: #ff6b6b;
+      --heart: #ff6b8a;
+      --gradient1: #c4a1ff; --gradient2: #ff6b8a; --gradient3: #ffc46b;
+      --scanline: rgba(255,255,255,0.008);
+      --shadow: 0 4px 24px rgba(0,0,0,0.4);
+      --glass: rgba(20,20,24,0.8);
     }
-    html, body {
+
+    /* ── Light Theme ───────────────────────────────────────────────── */
+    [data-theme="light"] {
+      --bg: #faf8f5; --surface: #ffffff; --surface2: #f2efe9;
+      --border: #e5e0d8; --accent: #7c5cbf; --accent2: #d94f6e;
+      --accent-glow: rgba(124,92,191,0.1); --accent2-glow: rgba(217,79,110,0.1);
+      --text: #1a1a2e; --text2: #4a4a5a; --muted: #9a9aaa;
+      --success: #2d9b5e; --warning: #c48820; --error: #d94f4f;
+      --heart: #d94f6e;
+      --gradient1: #7c5cbf; --gradient2: #d94f6e; --gradient3: #c48820;
+      --scanline: rgba(0,0,0,0.008);
+      --shadow: 0 4px 24px rgba(0,0,0,0.08);
+      --glass: rgba(255,255,255,0.85);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
       background: var(--bg); color: var(--text);
-      font-family: 'DM Sans', sans-serif;
+      font-family: 'Outfit', sans-serif;
       min-height: 100vh; overflow-x: hidden;
+      transition: background .4s, color .4s;
     }
+
+    /* Subtle grain overlay */
     body::before {
       content: ''; position: fixed; inset: 0;
-      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,.012) 2px, rgba(255,255,255,.012) 4px);
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, var(--scanline) 2px, var(--scanline) 4px);
       pointer-events: none; z-index: 9999;
     }
-    ::selection { background: var(--accent); color: #000; }
-    ::-webkit-scrollbar { width: 4px; }
+
+    ::selection { background: var(--accent); color: #fff; }
+    ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: var(--bg); }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-    .main { max-width: 860px; margin: 0 auto; padding: 0 20px 80px; display: flex; flex-direction: column; gap: 40px; }
-    .header { padding: 48px 0 28px; border-bottom: 1px solid var(--border); }
-    .logo { display: flex; align-items: center; gap: 12px; }
-    .logo-mark { font-size: 22px; color: var(--accent); animation: flicker 4s ease-in-out infinite; }
-    .logo-text { font-family: 'Bebas Neue', sans-serif; font-size: 52px; letter-spacing: 4px; line-height: 1; }
-    .tagline { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-top: 8px; }
-    .paste-section { display: flex; flex-direction: column; gap: 12px; }
-    .paste-label { display: flex; align-items: baseline; gap: 16px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; }
-    .hint { font-size: 10px; color: #444; text-transform: none; letter-spacing: 0; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+    /* ── Layout ───────────────────────────────────────────────────── */
+    .main {
+      max-width: 820px; margin: 0 auto; padding: 0 24px 60px;
+      display: flex; flex-direction: column; gap: 48px;
+      min-height: 100vh;
+    }
+
+    /* ── Header ───────────────────────────────────────────────────── */
+    .header {
+      padding: 44px 0 32px;
+      display: flex; justify-content: space-between; align-items: flex-start;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header-left { display: flex; flex-direction: column; gap: 8px; }
+
+    .logo {
+      display: flex; align-items: center; gap: 14px;
+    }
+
+    .logo-icon {
+      width: 42px; height: 42px; border-radius: 12px;
+      background: linear-gradient(135deg, var(--gradient1), var(--gradient2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; color: #fff;
+      box-shadow: 0 2px 16px var(--accent-glow);
+      transition: transform .3s, box-shadow .3s;
+    }
+
+    .logo-icon:hover { transform: scale(1.05) rotate(-3deg); box-shadow: 0 4px 24px var(--accent-glow); }
+
+    .logo-text {
+      font-family: 'Playfair Display', serif;
+      font-size: 36px; font-weight: 700;
+      background: linear-gradient(135deg, var(--gradient1), var(--gradient2), var(--gradient3));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.5px;
+    }
+
+    .tagline {
+      font-family: 'Space Mono', monospace; font-size: 10px;
+      color: var(--muted); letter-spacing: 3px; text-transform: uppercase;
+    }
+
+    /* Theme toggle */
+    .theme-toggle {
+      background: var(--surface2); border: 1px solid var(--border);
+      width: 44px; height: 44px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 18px;
+      transition: all .3s; margin-top: 4px;
+    }
+
+    .theme-toggle:hover {
+      background: var(--accent-glow); border-color: var(--accent);
+      transform: rotate(15deg);
+    }
+
+    /* ── Paste Section ────────────────────────────────────────────── */
+    .paste-section { display: flex; flex-direction: column; gap: 14px; }
+
+    .paste-label {
+      display: flex; align-items: baseline; gap: 14px;
+      font-family: 'Space Mono', monospace; font-size: 10px;
+      letter-spacing: 3px; color: var(--muted); text-transform: uppercase;
+    }
+
+    .hint { font-size: 10px; color: var(--muted); opacity: 0.6; text-transform: none; letter-spacing: 0; }
+
     textarea {
       background: var(--surface); border: 1px solid var(--border); color: var(--text);
-      font-family: 'DM Mono', monospace; font-size: 13px; line-height: 1.7;
-      padding: 16px 18px; resize: vertical; outline: none; width: 100%;
-      border-radius: 2px; min-height: 140px; transition: border-color .15s;
+      font-family: 'Space Mono', monospace; font-size: 12px; line-height: 1.8;
+      padding: 20px; resize: vertical; outline: none; width: 100%;
+      border-radius: 16px; min-height: 150px;
+      transition: border-color .3s, box-shadow .3s, background .4s;
     }
-    textarea:focus { border-color: var(--accent); }
-    textarea::placeholder { color: #333; }
+
+    textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    textarea::placeholder { color: var(--muted); opacity: 0.5; }
+
     .paste-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    /* ── Buttons ──────────────────────────────────────────────────── */
     .btn {
-      border: none; font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500;
-      letter-spacing: 2px; padding: 10px 22px; cursor: pointer; border-radius: 2px;
-      display: flex; align-items: center; gap: 8px; transition: all .15s; text-transform: uppercase;
+      border: none; font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 400;
+      letter-spacing: 2px; padding: 12px 24px; cursor: pointer; border-radius: 12px;
+      display: flex; align-items: center; gap: 8px; transition: all .25s; text-transform: uppercase;
     }
-    .btn:disabled { opacity: .4; cursor: not-allowed; }
-    .btn-primary { background: var(--accent); color: #000; }
-    .btn-primary:hover:not(:disabled) { opacity: .85; transform: translateY(-1px); }
-    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
-    .btn-ghost:hover { border-color: var(--muted); color: var(--text); }
-    .btn-accent { background: transparent; color: var(--accent); border: 1px solid var(--accent); font-size: 10px; padding: 8px 16px; }
-    .btn-accent:hover { background: var(--accent); color: #000; }
-    .btn-success { background: transparent; color: var(--success); border: 1px solid var(--success); font-size: 10px; padding: 8px 16px; }
+
+    .btn:disabled { opacity: .35; cursor: not-allowed; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--gradient1), var(--gradient2));
+      color: #fff; box-shadow: 0 2px 16px var(--accent-glow);
+    }
+
+    .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 24px var(--accent-glow); }
+
+    .btn-ghost { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--text); }
+
+    .btn-accent {
+      background: transparent; color: var(--accent); border: 1px solid var(--accent);
+      font-size: 10px; padding: 10px 18px; border-radius: 10px;
+    }
+    .btn-accent:hover { background: var(--accent); color: #fff; }
+
+    .btn-success {
+      background: transparent; color: var(--success); border: 1px solid var(--success);
+      font-size: 10px; padding: 10px 18px; border-radius: 10px;
+    }
     .btn-success:hover { background: var(--success); color: #000; }
-    .queue-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 12px; }
-    .queue-stats { display: flex; gap: 16px; }
-    .stat { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 2px; color: var(--muted); }
-    .stat-converting { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 2px; color: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
-    .stat-done { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 2px; color: var(--success); }
+
+    /* ── Queue ────────────────────────────────────────────────────── */
+    .queue-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-bottom: 18px; border-bottom: 1px solid var(--border);
+      flex-wrap: wrap; gap: 12px;
+    }
+
+    .queue-stats { display: flex; gap: 18px; align-items: center; }
+
+    .stat {
+      font-family: 'Space Mono', monospace; font-size: 10px;
+      letter-spacing: 2px; color: var(--muted); text-transform: uppercase;
+    }
+
+    .stat-converting { font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 2px; color: var(--accent); animation: pulse 1.5s ease-in-out infinite; }
+    .stat-done { font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 2px; color: var(--success); }
+
     .queue-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    /* ── Track Rows ──────────────────────────────────────────────── */
     .track-row {
-      display: grid; grid-template-columns: 32px 72px 1fr auto auto;
-      gap: 14px; align-items: center; padding: 14px 0;
-      border-bottom: 1px solid var(--border); animation: slideIn .3s ease both;
+      display: grid; grid-template-columns: 30px 68px 1fr auto auto;
+      gap: 16px; align-items: center; padding: 16px 0;
+      border-bottom: 1px solid var(--border);
+      animation: slideIn .4s ease both;
+      transition: background .2s;
     }
-    .track-index { font-family: 'DM Mono', monospace; font-size: 11px; color: #333; text-align: right; }
-    .track-thumb { width: 72px; height: 40px; overflow: hidden; border-radius: 2px; background: var(--surface); display: flex; align-items: center; justify-content: center; }
+
+    .track-row:hover { background: var(--accent-glow); border-radius: 12px; margin: 0 -12px; padding: 16px 12px; }
+
+    .track-index {
+      font-family: 'Playfair Display', serif; font-size: 14px;
+      color: var(--muted); text-align: right; font-style: italic; opacity: 0.5;
+    }
+
+    .track-thumb {
+      width: 68px; height: 42px; overflow: hidden; border-radius: 8px;
+      background: var(--surface2); display: flex; align-items: center; justify-content: center;
+      box-shadow: var(--shadow);
+    }
+
     .track-thumb img { width: 100%; height: 100%; object-fit: cover; }
-    .thumb-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--muted); background: var(--surface2); }
-    .track-info { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-    .track-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .track-author { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); }
-    .track-id { font-family: 'DM Mono', monospace; font-size: 9px; color: #333; }
-    .track-error { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--accent2); }
+
+    .thumb-placeholder {
+      width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+      font-size: 16px; color: var(--muted); background: var(--surface2);
+    }
+
+    .track-info { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+
+    .track-title {
+      font-size: 13px; font-weight: 500; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; color: var(--text);
+    }
+
+    .track-author { font-family: 'Space Mono', monospace; font-size: 9px; color: var(--muted); letter-spacing: 0.5px; }
+    .track-id { font-family: 'Space Mono', monospace; font-size: 8px; color: var(--muted); opacity: 0.4; }
+    .track-error { font-family: 'Space Mono', monospace; font-size: 9px; color: var(--error); }
+
     .badge {
-      font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 1.5px;
-      border: 1px solid; padding: 3px 7px; border-radius: 2px; white-space: nowrap;
+      font-family: 'Space Mono', monospace; font-size: 8px; letter-spacing: 2px;
+      border: 1px solid; padding: 4px 10px; border-radius: 20px; white-space: nowrap;
     }
+
     .track-action { width: 80px; display: flex; justify-content: flex-end; }
+
     .btn-row {
-      font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 1px;
-      padding: 5px 10px; cursor: pointer; border-radius: 2px; border: 1px solid;
-      background: transparent; transition: all .15s; white-space: nowrap;
+      font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 1px;
+      padding: 6px 12px; cursor: pointer; border-radius: 8px; border: 1px solid;
+      background: transparent; transition: all .2s; white-space: nowrap;
     }
+
     .btn-row-convert { color: var(--warning); border-color: var(--warning); }
     .btn-row-convert:hover { background: var(--warning); color: #000; }
-    .btn-row-download { color: #000; background: var(--success); border: none; font-weight: 500; }
-    .btn-row-download:hover { opacity: .8; }
-    .btn-row-retry { color: var(--accent2); border-color: var(--accent2); }
-    .btn-row-retry:hover { background: var(--accent2); color: #000; }
-    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid transparent; border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
-    .empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 60px 20px; color: var(--muted); text-align: center; }
-    .empty-icon { font-size: 40px; color: #2a2a2a; }
-    .empty p { font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: 1px; }
-    .empty .tip { color: #333; font-size: 10px; }
-    .footer { margin-top: auto; padding-top: 40px; text-align: center; font-family: 'DM Mono', monospace; font-size: 10px; color: #2a2a2a; letter-spacing: 2px; }
+    .btn-row-download { color: #fff; background: linear-gradient(135deg, var(--gradient1), var(--gradient2)); border: none; font-weight: 500; }
+    .btn-row-download:hover { opacity: .85; transform: scale(1.03); }
+    .btn-row-retry { color: var(--error); border-color: var(--error); }
+    .btn-row-retry:hover { background: var(--error); color: #fff; }
+
+    /* ── Spinner ──────────────────────────────────────────────────── */
+    .spinner {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid transparent; border-top-color: var(--accent);
+      border-radius: 50%; animation: spin .7s linear infinite;
+    }
+
+    /* ── Empty State ──────────────────────────────────────────────── */
+    .empty {
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+      padding: 80px 20px; color: var(--muted); text-align: center;
+    }
+
+    .empty-icon {
+      width: 64px; height: 64px; border-radius: 20px;
+      background: linear-gradient(135deg, var(--accent-glow), var(--accent2-glow));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px; margin-bottom: 8px;
+    }
+
+    .empty p { font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 1px; }
+    .empty .tip { color: var(--muted); font-size: 10px; opacity: 0.5; }
+
+    /* ── Footer ───────────────────────────────────────────────────── */
+    .footer {
+      margin-top: auto; padding: 40px 0 20px; text-align: center;
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+    }
+
+    .footer-love {
+      font-family: 'Playfair Display', serif; font-size: 13px;
+      color: var(--muted); font-style: italic; letter-spacing: 0.5px;
+    }
+
+    .footer-love .heart {
+      color: var(--heart); display: inline-block;
+      animation: heartbeat 1.5s ease-in-out infinite;
+      font-style: normal; font-size: 15px;
+    }
+
+    .footer-names {
+      font-family: 'Playfair Display', serif; font-size: 18px;
+      font-weight: 700; letter-spacing: 1px;
+      background: linear-gradient(135deg, var(--gradient1), var(--gradient2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .footer-quote {
+      font-family: 'Playfair Display', serif; font-size: 11px;
+      color: var(--muted); font-style: italic; max-width: 300px;
+      line-height: 1.6; margin-top: 4px; opacity: 0.6;
+    }
+
+    .footer-sub {
+      font-family: 'Space Mono', monospace; font-size: 8px;
+      color: var(--muted); letter-spacing: 3px; text-transform: uppercase;
+      opacity: 0.3; margin-top: 8px;
+    }
+
+    /* ── Animations ───────────────────────────────────────────────── */
     @keyframes spin { to { transform: rotate(360deg); } }
-    @keyframes pulse { 0%,100% { opacity: .5; } 50% { opacity: 1; } }
-    @keyframes flicker { 0%,95%,100% { opacity: 1; } 96% { opacity: .2; } 97% { opacity: 1; } 98% { opacity: .4; } }
-    @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse { 0%,100% { opacity: .4; } 50% { opacity: 1; } }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+    @keyframes heartbeat {
+      0%, 100% { transform: scale(1); }
+      15% { transform: scale(1.25); }
+      30% { transform: scale(1); }
+      45% { transform: scale(1.15); }
+      60% { transform: scale(1); }
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+
+    /* ── Responsive ───────────────────────────────────────────────── */
     @media (max-width: 600px) {
-      .logo-text { font-size: 38px; }
-      .track-row { grid-template-columns: 24px 56px 1fr auto; gap: 10px; }
+      .logo-text { font-size: 28px; }
+      .track-row { grid-template-columns: 22px 52px 1fr auto; gap: 10px; }
       .track-status { display: none; }
       .track-action { width: auto; }
       .queue-header { flex-direction: column; align-items: flex-start; }
+      .header { flex-direction: column; gap: 16px; }
+      .theme-toggle { align-self: flex-end; margin-top: -40px; }
     }
   </style>
 </head>
 <body>
 <div class="main" id="app">
+  <!-- Header -->
   <header class="header">
-    <div class="logo">
-      <span class="logo-mark">▶</span>
-      <span class="logo-text">DROPBEAT</span>
+    <div class="header-left">
+      <div class="logo">
+        <div class="logo-icon">&#9835;</div>
+        <span class="logo-text">dropbeat</span>
+      </div>
+      <p class="tagline">paste &middot; convert &middot; feel the beat</p>
     </div>
-    <p class="tagline">paste any youtube links · we'll convert them all · 320kbps mp3</p>
+    <button class="theme-toggle" id="themeToggle" title="Switch theme">&#9790;</button>
   </header>
 
+  <!-- Paste -->
   <section class="paste-section">
     <div class="paste-label">
-      <span>DROP YOUR LINKS</span>
-      <span class="hint">youtube.com, music.youtube.com, youtu.be — any format, any order</span>
+      <span>Drop your links</span>
+      <span class="hint">youtube, music.youtube, youtu.be &mdash; any format</span>
     </div>
     <textarea id="pasteBox" rows="6" spellcheck="false"
-      placeholder="Paste anything here...&#10;&#10;https://music.youtube.com/watch?v=abc123&#10;https://youtu.be/xyz789&#10;&#10;Even links glued together with no spaces — we'll find them all."></textarea>
+      placeholder="Paste anything here...&#10;&#10;https://music.youtube.com/watch?v=abc123&#10;https://youtu.be/xyz789&#10;&#10;Links glued together, mixed with text &mdash; we'll find them all."></textarea>
     <div class="paste-actions">
-      <button class="btn btn-primary" id="detectBtn" disabled>DETECT LINKS</button>
-      <button class="btn btn-ghost" id="clearBtn" style="display:none">CLEAR ALL</button>
+      <button class="btn btn-primary" id="detectBtn" disabled>Detect Links</button>
+      <button class="btn btn-ghost" id="clearBtn" style="display:none">Clear All</button>
     </div>
   </section>
 
+  <!-- Queue -->
   <section id="queueSection" style="display:none">
     <div class="queue-header">
       <div class="queue-stats" id="queueStats"></div>
@@ -146,16 +383,41 @@
     <div id="trackList"></div>
   </section>
 
+  <!-- Empty state -->
   <div class="empty" id="emptyState">
-    <div class="empty-icon">⌗</div>
-    <p>No links yet — paste above to get started</p>
-    <p class="tip">Works with youtube.com, music.youtube.com, youtu.be, /shorts, /embed</p>
+    <div class="empty-icon">&#9835;</div>
+    <p>No links yet &mdash; paste above to get started</p>
+    <p class="tip">youtube.com &middot; music.youtube.com &middot; youtu.be &middot; /shorts &middot; /embed</p>
   </div>
 
-  <footer class="footer">DROPBEAT · free forever · no account needed · 320kbps</footer>
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-love">made with care & <span class="heart">&hearts;</span></div>
+    <div class="footer-names">Mouad &hearts; Cassie</div>
+    <div class="footer-quote">&ldquo;Every song reminds me of you&rdquo;</div>
+    <div class="footer-sub">dropbeat &middot; 320kbps &middot; always free</div>
+  </footer>
 </div>
 
 <script>
+// ── Theme Toggle ─────────────────────────────────────────────────────────────
+const themeToggle = document.getElementById("themeToggle");
+const html = document.documentElement;
+
+// Load saved theme
+const savedTheme = (() => { try { return window.localStorage?.getItem?.("theme"); } catch { return null; } })() || "dark";
+html.setAttribute("data-theme", savedTheme);
+themeToggle.textContent = savedTheme === "dark" ? "\u263E" : "\u2600";
+
+themeToggle.addEventListener("click", () => {
+  const current = html.getAttribute("data-theme");
+  const next = current === "dark" ? "light" : "dark";
+  html.setAttribute("data-theme", next);
+  themeToggle.textContent = next === "dark" ? "\u263E" : "\u2600";
+  try { window.localStorage?.setItem?.("theme", next); } catch {}
+});
+
+// ── App Logic ────────────────────────────────────────────────────────────────
 const pasteBox = document.getElementById("pasteBox");
 const detectBtn = document.getElementById("detectBtn");
 const clearBtn = document.getElementById("clearBtn");
@@ -180,7 +442,7 @@ function extractIds(text) {
 pasteBox.addEventListener("input", () => {
   const count = extractIds(pasteBox.value).length;
   detectBtn.disabled = count === 0;
-  detectBtn.textContent = count > 0 ? `DETECT LINKS (${count} found)` : "DETECT LINKS";
+  detectBtn.textContent = count > 0 ? `Detect Links (${count} found)` : "Detect Links";
 });
 
 pasteBox.addEventListener("keydown", (e) => {
@@ -193,7 +455,7 @@ detectBtn.addEventListener("click", async () => {
   entries = ids.map(id => ({ id, status: "idle", title: null, author: null, thumbnail: null, url: null, error: null }));
   pasteBox.value = "";
   detectBtn.disabled = true;
-  detectBtn.textContent = "DETECT LINKS";
+  detectBtn.textContent = "Detect Links";
   render();
   await Promise.all(entries.map(async (entry) => {
     try {
@@ -215,7 +477,6 @@ async function convertTrack(entry) {
   entry.status = "converting";
   entry.error = null;
   render();
-
   try {
     const res = await fetch(`/api/convert?id=${entry.id}`);
     const data = await res.json();
@@ -231,18 +492,14 @@ async function convertTrack(entry) {
 
 async function convertAll() {
   const ready = entries.filter(e => e.status === "ready" || e.status === "error");
-  for (const e of ready) {
-    await convertTrack(e);
-  }
+  for (const e of ready) await convertTrack(e);
 }
 
 function downloadTrack(entry) {
-  // Use a hidden iframe to force download without opening new tab
   const iframe = document.createElement("iframe");
   iframe.style.display = "none";
   iframe.src = entry.url;
   document.body.appendChild(iframe);
-  // Clean up after 30 seconds
   setTimeout(() => iframe.remove(), 30000);
 }
 
@@ -252,10 +509,7 @@ function downloadAll() {
   });
 }
 
-clearBtn.addEventListener("click", () => {
-  entries = [];
-  render();
-});
+clearBtn.addEventListener("click", () => { entries = []; render(); });
 
 function render() {
   const total = entries.length;
@@ -267,14 +521,14 @@ function render() {
   queueSection.style.display = total > 0 ? "block" : "none";
   clearBtn.style.display = total > 0 ? "inline-flex" : "none";
 
-  let statsHtml = `<span class="stat">${total} TRACKS</span>`;
-  if (converting > 0) statsHtml += `<span class="stat-converting">${converting} CONVERTING</span>`;
-  if (done > 0) statsHtml += `<span class="stat-done">${done} READY</span>`;
+  let statsHtml = `<span class="stat">${total} tracks</span>`;
+  if (converting > 0) statsHtml += `<span class="stat-converting">${converting} converting</span>`;
+  if (done > 0) statsHtml += `<span class="stat-done">${done} ready</span>`;
   queueStats.innerHTML = statsHtml;
 
   let actionsHtml = "";
-  if (ready > 0) actionsHtml += `<button class="btn btn-accent" onclick="convertAll()">CONVERT ALL (${ready})</button>`;
-  if (done > 0) actionsHtml += `<button class="btn btn-success" onclick="downloadAll()">↓ DOWNLOAD ALL (${done})</button>`;
+  if (ready > 0) actionsHtml += `<button class="btn btn-accent" onclick="convertAll()">Convert All (${ready})</button>`;
+  if (done > 0) actionsHtml += `<button class="btn btn-success" onclick="downloadAll()">&#8595; Download All (${done})</button>`;
   queueActions.innerHTML = actionsHtml;
 
   trackList.innerHTML = entries.map((e, i) => {
@@ -282,33 +536,33 @@ function render() {
       idle: { label: "LOADING", color: "var(--muted)" },
       ready: { label: "READY", color: "var(--warning)" },
       converting: { label: "CONVERTING", color: "var(--accent)" },
-      done: { label: "MP3 READY", color: "var(--success)" },
-      error: { label: "ERROR", color: "var(--accent2)" },
+      done: { label: "DONE", color: "var(--success)" },
+      error: { label: "ERROR", color: "var(--error)" },
     };
     const s = statusColors[e.status] || statusColors.idle;
     const isPulse = e.status === "idle" || e.status === "converting";
     const thumb = e.thumbnail
       ? `<img src="${e.thumbnail}" alt="" />`
-      : `<div class="thumb-placeholder">${e.status === "idle" ? '<span class="spinner"></span>' : '♪'}</div>`;
+      : `<div class="thumb-placeholder">${e.status === "idle" ? '<span class="spinner"></span>' : '&#9835;'}</div>`;
 
     let actionHtml = "";
-    if (e.status === "ready") actionHtml = `<button class="btn-row btn-row-convert" onclick="convertTrack(entries[${i}])">CONVERT</button>`;
+    if (e.status === "ready") actionHtml = `<button class="btn-row btn-row-convert" onclick="convertTrack(entries[${i}])">Convert</button>`;
     else if (e.status === "converting") actionHtml = `<span class="spinner"></span>`;
-    else if (e.status === "done") actionHtml = `<button class="btn-row btn-row-download" onclick="downloadTrack(entries[${i}])">↓ MP3</button>`;
-    else if (e.status === "error") actionHtml = `<button class="btn-row btn-row-retry" onclick="convertTrack(entries[${i}])">RETRY</button>`;
+    else if (e.status === "done") actionHtml = `<button class="btn-row btn-row-download" onclick="downloadTrack(entries[${i}])">&#8595; MP3</button>`;
+    else if (e.status === "error") actionHtml = `<button class="btn-row btn-row-retry" onclick="convertTrack(entries[${i}])">Retry</button>`;
 
     return `
-      <div class="track-row" style="animation-delay:${i * 40}ms">
-        <div class="track-index">${String(i + 1).padStart(2, "0")}</div>
+      <div class="track-row" style="animation-delay:${i * 50}ms">
+        <div class="track-index">${i + 1}</div>
         <div class="track-thumb">${thumb}</div>
         <div class="track-info">
-          <div class="track-title">${e.title || (e.status === "idle" ? "Fetching info..." : e.id)}</div>
+          <div class="track-title">${e.title || (e.status === "idle" ? "Fetching..." : e.id)}</div>
           ${e.author ? `<div class="track-author">${e.author}</div>` : ""}
           ${e.error ? `<div class="track-error">${e.error}</div>` : ""}
           <div class="track-id">${e.id}</div>
         </div>
         <div class="track-status">
-          <span class="badge" style="color:${s.color};border-color:${s.color};${isPulse ? "animation:pulse 1.2s ease-in-out infinite" : ""}">${s.label}</span>
+          <span class="badge" style="color:${s.color};border-color:${s.color};${isPulse ? "animation:pulse 1.5s ease-in-out infinite" : ""}">${s.label}</span>
         </div>
         <div class="track-action">${actionHtml}</div>
       </div>`;
