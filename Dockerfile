@@ -4,7 +4,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates ffmpeg python3 python3-pip && \
     rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install --break-system-packages yt-dlp
+RUN pip3 install --break-system-packages --upgrade yt-dlp
 
 WORKDIR /app
 
@@ -17,4 +17,4 @@ RUN mkdir -p tmp
 
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["/bin/sh", "-c", "yt-dlp -U; node server.js"]
