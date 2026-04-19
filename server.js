@@ -54,8 +54,16 @@ app.get("/api/convert", async (req, res) => {
 
   try {
     await new Promise((resolve, reject) => {
-      const args = [
-        "--cookies", COOKIES_PATH,
+      const args = [];
+
+      // Add cookies if available
+      if (fs.existsSync(COOKIES_PATH)) {
+        args.push("--cookies", COOKIES_PATH);
+      }
+
+      args.push(
+        // Use mweb client (recommended by yt-dlp wiki for current YouTube)
+        "--extractor-args", "youtube:player_client=mweb",
         "-f", "bestaudio/best",
         "-x",
         "--audio-format", "mp3",
@@ -66,10 +74,11 @@ app.get("/api/convert", async (req, res) => {
         "--geo-bypass",
         "--add-metadata",
         "--postprocessor-args", "-b:a 320k",
-        "--sleep-requests", "1",
+        "--sleep-requests", "2",
+        "--verbose",
         "-o", outputTemplate,
         `https://www.youtube.com/watch?v=${id}`,
-      ];
+      );
 
       console.log(`Converting ${id}...`);
       const proc = spawn("yt-dlp", args, { timeout: 180000 });
