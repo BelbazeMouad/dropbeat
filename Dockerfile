@@ -1,13 +1,12 @@
 FROM node:20-slim
 
-# Install ffmpeg + python (needed by yt-dlp)
+# Install certs, ffmpeg, python, yt-dlp
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg python3 curl && \
+    apt-get install -y --no-install-recommends ca-certificates ffmpeg python3 && \
     rm -rf /var/lib/apt/lists/*
 
-# Install yt-dlp binary
-RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
-    chmod a+rx /usr/local/bin/yt-dlp
+# Install yt-dlp via pip instead of curl
+RUN python3 -m ensurepip && pip3 install --break-system-packages yt-dlp
 
 WORKDIR /app
 
