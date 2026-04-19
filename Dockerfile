@@ -1,17 +1,18 @@
 FROM node:20-slim
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates ffmpeg python3 python3-pip git && \
+    apt-get install -y --no-install-recommends ca-certificates ffmpeg python3 python3-pip git build-essential libcairo2-dev libjpeg-dev libpango1.0-dev libgif-dev librsvg2-dev && \
     rm -rf /var/lib/apt/lists/*
 
-# Install yt-dlp + PO Token plugins
-RUN pip3 install --break-system-packages --upgrade yt-dlp bgutil-ytdlp-pot-provider
+# Install yt-dlp + plugins
+RUN pip3 install --break-system-packages --upgrade yt-dlp bgutil-ytdlp-pot-provider yt-dlp-ejs
 
-# Clone and setup bgutil server (generates PO tokens automatically)
+# Clone bgutil server with correct version and build it properly
 RUN cd /opt && \
-    git clone https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git && \
+    git clone --single-branch --branch 1.3.1 https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git && \
     cd bgutil-ytdlp-pot-provider/server && \
-    npm install
+    npm ci && \
+    npx tsc
 
 WORKDIR /app
 
@@ -24,5 +25,7 @@ RUN mkdir -p tmp
 
 EXPOSE 3000
 
-# Start the bgutil PO token server in background, then start our app
-CMD ["/bin/sh", "-c", "cd /opt/bgutil-ytdlp-pot-provider/server && node src/main.js &  sleep 3 && echo 'PO Token server started' && cd /app && node server.js"]
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
+
+CMD ["/app/start.sh"]
