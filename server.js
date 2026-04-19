@@ -17,16 +17,16 @@ if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR);
 
 const COOKIES_PATH = path.join(__dirname, "cookies.txt");
 
-// Clean old files every 10 minutes
+// Clean old files every 30 minutes
 setInterval(() => {
   try {
     const now = Date.now();
     for (const f of fs.readdirSync(TMP_DIR)) {
       const fp = path.join(TMP_DIR, f);
-      if (now - fs.statSync(fp).mtimeMs > 15 * 60 * 1000) fs.unlinkSync(fp);
+      if (now - fs.statSync(fp).mtimeMs > 60 * 60 * 1000) fs.unlinkSync(fp);
     }
   } catch {}
-}, 10 * 60 * 1000);
+}, 30 * 60 * 1000);
 
 app.get("/api/info", async (req, res) => {
   const { id } = req.query;
@@ -43,6 +43,7 @@ app.get("/api/info", async (req, res) => {
   }
 });
 
+// Convert endpoint - returns JSON with download path
 app.get("/api/convert", async (req, res) => {
   const { id } = req.query;
   if (!id || !/^[A-Za-z0-9_-]{11}$/.test(id)) {
@@ -56,13 +57,11 @@ app.get("/api/convert", async (req, res) => {
     await new Promise((resolve, reject) => {
       const args = [];
 
-      // Add cookies if available
       if (fs.existsSync(COOKIES_PATH)) {
         args.push("--cookies", COOKIES_PATH);
       }
 
       args.push(
-        // Use mweb client (recommended by yt-dlp wiki for current YouTube)
         "--extractor-args", "youtube:player_client=mweb",
         "-f", "bestaudio/best",
         "-x",
@@ -75,7 +74,6 @@ app.get("/api/convert", async (req, res) => {
         "--add-metadata",
         "--postprocessor-args", "-b:a 320k",
         "--sleep-requests", "2",
-        "--verbose",
         "-o", outputTemplate,
         `https://www.youtube.com/watch?v=${id}`,
       );
@@ -105,21 +103,43 @@ app.get("/api/convert", async (req, res) => {
   }
 });
 
+// Download endpoint - streams the file directly
 app.get("/api/download/:filename", (req, res) => {
   const { filename } = req.params;
+  
+  // Security check
   if (!/^[A-Za-z0-9_-]+\.mp3$/.test(filename)) {
-    return res.status(400).json({ error: "Invalid filename" });
+    return res.status(400).send("Invalid filename");
   }
+  
   const filePath = path.join(TMP_DIR, filename);
+  
   if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: "File not found or expired" });
+    return res.status(404).send("File expired. Please convert again.");
   }
-  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-  res.setHeader("Content-Type", "audio/mpeg");
-  fs.createReadStream(filePath).pipe(res);
+
+  try {
+    const stat = fs.statSync(filePath);
+    res.writeHead(200, {
+      "Content-Type": "audio/mpeg",
+      "Content-Length": stat.size,
+      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Accept-Ranges": "bytes",
+    });
+    fs.createReadStream(filePath).pipe(res);
+  } catch (err) {
+    console.error("Download error:", err);
+    res.status(500).send("Download failed");
+  }
 });
 
 app.listen(PORT, () => {
   console.log(`DROPBEAT running on port ${PORT}`);
   console.log(`Cookies: ${fs.existsSync(COOKIES_PATH) ? "LOADED" : "NOT FOUND"}`);
+  console.log(`Tmp dir: ${TMP_DIR}`);
+  // List existing files
+  try {
+    const files = fs.readdirSync(TMP_DIR);
+    console.log(`Files in tmp: ${files.length}`);
+  } catch {}
 });
