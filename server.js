@@ -90,11 +90,11 @@ app.get("/api/convert", async (req, res) => {
     await new Promise((resolve, reject) => {
       const args = [
         ...ytdlpArgs(),
+         "-f", "bestaudio",
         "-x",
         "--audio-format", "mp3",
         "--audio-quality", "0",
         "--no-part",
-        "--embed-thumbnail",
         "--add-metadata",
         "--postprocessor-args", "-b:a 320k",
         "-o", outputTemplate,
