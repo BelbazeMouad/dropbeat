@@ -19,14 +19,25 @@ app.use(express.static(path.join(__dirname, "public")));
 const TMP_DIR = path.join(__dirname, "tmp");
 if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR);
 
-// Clean old files every 10 minutes (keep tmp small)
+// yt-dlp args that bypass auth issues
+const YT_DLP_BASE = [
+  "--extractor-args", "youtube:player_client=mediaconnect",
+  "--no-check-certificates",
+  "--geo-bypass",
+  "--no-playlist",
+  "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+];
+
+// Clean old files every 10 minutes
 setInterval(() => {
   const now = Date.now();
-  for (const f of fs.readdirSync(TMP_DIR)) {
-    const fp = path.join(TMP_DIR, f);
-    const age = now - fs.statSync(fp).mtimeMs;
-    if (age > 15 * 60 * 1000) fs.unlinkSync(fp); // 15 min
-  }
+  try {
+    for (const f of fs.readdirSync(TMP_DIR)) {
+      const fp = path.join(TMP_DIR, f);
+      const age = now - fs.statSync(fp).mtimeMs;
+      if (age > 15 * 60 * 1000) fs.unlinkSync(fp);
+    }
+  } catch {}
 }, 10 * 60 * 1000);
 
 // ── GET /api/info?id=VIDEO_ID ──────────────────────────────────────────────
@@ -36,40 +47,26 @@ app.get("/api/info", async (req, res) => {
     return res.status(400).json({ error: "Invalid video ID" });
   }
 
+  // Always use oEmbed for info — fast, no auth needed
   try {
-    const { stdout } = await execFileAsync("yt-dlp", [
-      "--dump-json",
-      "--no-download",
-      "--no-playlist",
-      `https://www.youtube.com/watch?v=${id}`,
-    ], { timeout: 15000 });
-
-    const info = JSON.parse(stdout);
+    const oembedRes = await fetch(
+      `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${id}&format=json`
+    );
+    if (!oembedRes.ok) throw new Error("oembed failed");
+    const data = await oembedRes.json();
     res.json({
       id,
-      title: info.title || id,
-      author: info.uploader || info.channel || "Unknown",
-      thumbnail: info.thumbnail || `https://img.youtube.com/vi/${id}/mqdefault.jpg`,
-      duration: info.duration || 0,
+      title: data.title,
+      author: data.author_name,
+      thumbnail: `https://img.youtube.com/vi/${id}/mqdefault.jpg`,
     });
-  } catch (err) {
-    // Fallback to oEmbed if yt-dlp info fails
-    try {
-      const oembedRes = await fetch(
-        `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${id}&format=json`
-      );
-      if (!oembedRes.ok) throw new Error("oembed failed");
-      const data = await oembedRes.json();
-      res.json({
-        id,
-        title: data.title,
-        author: data.author_name,
-        thumbnail: `https://img.youtube.com/vi/${id}/mqdefault.jpg`,
-        duration: 0,
-      });
-    } catch {
-      res.status(500).json({ error: "Could not fetch video info" });
-    }
+  } catch {
+    res.json({
+      id,
+      title: id,
+      author: "Unknown",
+      thumbnail: `https://img.youtube.com/vi/${id}/mqdefault.jpg`,
+    });
   }
 });
 
@@ -84,41 +81,42 @@ app.get("/api/convert", async (req, res) => {
   const outputPath = path.join(TMP_DIR, filename);
 
   try {
-    // yt-dlp: download best audio → ffmpeg converts to 320kbps MP3
     await new Promise((resolve, reject) => {
-      const proc = spawn("yt-dlp", [
-        "-x",                          // extract audio
+      const args = [
+        ...YT_DLP_BASE,
+        "-x",                          // extract audio only
         "--audio-format", "mp3",       // convert to mp3
-        "--audio-quality", "0",        // best quality (VBR ~320kbps)
-        "--no-playlist",
+        "--audio-quality", "0",        // best quality (V0 ~245kbps VBR, or 320 CBR)
         "--no-part",
-        "--embed-thumbnail",           // embed cover art in mp3
-        "--add-metadata",              // add title/artist metadata
+        "--embed-thumbnail",           // embed cover art
+        "--add-metadata",              // embed title/artist
+        "--postprocessor-args", "-b:a 320k", // force 320kbps
         "-o", outputPath.replace(".mp3", ".%(ext)s"),
         `https://www.youtube.com/watch?v=${id}`,
-      ], { timeout: 120000 });
+      ];
+
+      const proc = spawn("yt-dlp", args, { timeout: 120000 });
 
       let stderr = "";
       proc.stderr.on("data", (d) => { stderr += d.toString(); });
+      proc.stdout.on("data", () => {}); // drain stdout
       proc.on("close", (code) => {
         if (code === 0) resolve();
-        else reject(new Error(`yt-dlp exited ${code}: ${stderr.slice(-300)}`));
+        else reject(new Error(stderr.slice(-500) || `exit code ${code}`));
       });
       proc.on("error", reject);
     });
 
-    // Find the output file (yt-dlp may name it slightly differently)
+    // Find the mp3 output
     const candidates = fs.readdirSync(TMP_DIR).filter((f) => f.startsWith(id));
     const mp3File = candidates.find((f) => f.endsWith(".mp3"));
 
     if (!mp3File) {
-      throw new Error("MP3 file not created — yt-dlp may have failed silently");
+      throw new Error("MP3 file not created");
     }
 
-    const finalPath = path.join(TMP_DIR, mp3File);
     res.json({ url: `/api/download/${mp3File}` });
   } catch (err) {
-    // Cleanup on error
     try { fs.unlinkSync(outputPath); } catch {}
     console.error("Convert error:", err.message);
     res.status(500).json({ error: err.message });
@@ -129,7 +127,6 @@ app.get("/api/convert", async (req, res) => {
 app.get("/api/download/:filename", (req, res) => {
   const { filename } = req.params;
 
-  // Security: only allow expected filenames
   if (!/^[A-Za-z0-9_-]+\.mp3$/.test(filename)) {
     return res.status(400).json({ error: "Invalid filename" });
   }
@@ -144,7 +141,6 @@ app.get("/api/download/:filename", (req, res) => {
   fs.createReadStream(filePath).pipe(res);
 });
 
-// ── Start ──────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`DROPBEAT running on port ${PORT}`);
 });
