@@ -56,7 +56,6 @@ app.get("/api/convert", async (req, res) => {
     await new Promise((resolve, reject) => {
       const args = [
         "--cookies", COOKIES_PATH,
-        "--extractor-args", "youtube:player_client=ios",
         "-f", "bestaudio/best",
         "-x",
         "--audio-format", "mp3",
