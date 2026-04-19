@@ -88,8 +88,18 @@ app.get("/api/convert", async (req, res) => {
     const mp3File = candidates.find((f) => f.endsWith(".mp3"));
     if (!mp3File) throw new Error("MP3 file not created");
 
+    // Get the title for the filename
+    let title = mp3File;
+    try {
+      const r = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${id}&format=json`);
+      if (r.ok) {
+        const d = await r.json();
+        if (d.title) title = d.title.replace(/[\/\\?%*:|"<>]/g, "").trim();
+      }
+    } catch {}
+
     console.log(`Done: ${mp3File}`);
-    res.json({ url: `/api/download/${mp3File}` });
+    res.json({ url: `/api/download/${mp3File}?title=${encodeURIComponent(title)}` });
   } catch (err) {
     console.error("Convert error:", err.message);
     res.status(500).json({ error: err.message });
@@ -106,11 +116,13 @@ app.get("/api/download/:filename", (req, res) => {
     return res.status(404).send("File expired. Convert again.");
   }
   try {
+    const title = req.query.title || filename;
+    const safeName = title.endsWith(".mp3") ? title : `${title}.mp3`;
     const stat = fs.statSync(filePath);
     res.writeHead(200, {
       "Content-Type": "audio/mpeg",
       "Content-Length": stat.size,
-      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Disposition": `attachment; filename="${safeName}"`,
     });
     fs.createReadStream(filePath).pipe(res);
   } catch (err) {
