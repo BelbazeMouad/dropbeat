@@ -1,12 +1,10 @@
 FROM node:20-slim
 
-# Install certs, ffmpeg, python, yt-dlp
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates ffmpeg python3 && \
+    apt-get install -y --no-install-recommends ca-certificates ffmpeg python3 python3-pip && \
     rm -rf /var/lib/apt/lists/*
 
-# Install yt-dlp via pip instead of curl
-RUN python3 -m ensurepip && pip3 install --break-system-packages yt-dlp
+RUN pip3 install --break-system-packages yt-dlp
 
 WORKDIR /app
 
