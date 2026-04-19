@@ -28,7 +28,6 @@ setInterval(() => {
   } catch {}
 }, 10 * 60 * 1000);
 
-// ── GET /api/info ──────────────────────────────────────────────────────────
 app.get("/api/info", async (req, res) => {
   const { id } = req.query;
   if (!id || !/^[A-Za-z0-9_-]{11}$/.test(id)) {
@@ -44,7 +43,6 @@ app.get("/api/info", async (req, res) => {
   }
 });
 
-// ── GET /api/convert ───────────────────────────────────────────────────────
 app.get("/api/convert", async (req, res) => {
   const { id } = req.query;
   if (!id || !/^[A-Za-z0-9_-]{11}$/.test(id)) {
@@ -57,9 +55,9 @@ app.get("/api/convert", async (req, res) => {
   try {
     await new Promise((resolve, reject) => {
       const args = [
-        // Force android client — no PO token or data sync needed
-        "--extractor-args", "youtube:player_client=android",
-        "-f", "bestaudio[ext=m4a]/bestaudio/best",
+        "--cookies", COOKIES_PATH,
+        "--extractor-args", "youtube:player_client=ios",
+        "-f", "bestaudio/best",
         "-x",
         "--audio-format", "mp3",
         "--audio-quality", "0",
@@ -69,18 +67,13 @@ app.get("/api/convert", async (req, res) => {
         "--geo-bypass",
         "--add-metadata",
         "--postprocessor-args", "-b:a 320k",
+        "--sleep-requests", "1",
         "-o", outputTemplate,
+        `https://www.youtube.com/watch?v=${id}`,
       ];
 
-      // Add cookies if available
-      if (fs.existsSync(COOKIES_PATH)) {
-        args.push("--cookies", COOKIES_PATH);
-      }
-
-      args.push(`https://www.youtube.com/watch?v=${id}`);
-
-      console.log(`Converting ${id} with android client...`);
-      const proc = spawn("yt-dlp", args, { timeout: 120000 });
+      console.log(`Converting ${id}...`);
+      const proc = spawn("yt-dlp", args, { timeout: 180000 });
 
       let stderr = "";
       proc.stderr.on("data", (d) => { stderr += d.toString(); console.error(d.toString()); });
@@ -104,7 +97,6 @@ app.get("/api/convert", async (req, res) => {
   }
 });
 
-// ── GET /api/download/:filename ────────────────────────────────────────────
 app.get("/api/download/:filename", (req, res) => {
   const { filename } = req.params;
   if (!/^[A-Za-z0-9_-]+\.mp3$/.test(filename)) {
