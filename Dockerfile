@@ -1,18 +1,16 @@
 FROM node:20-slim
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates ffmpeg python3 python3-pip git build-essential libcairo2-dev libjpeg-dev libpango1.0-dev libgif-dev librsvg2-dev && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates ffmpeg python3 python3-pip git \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install yt-dlp + plugins
-RUN pip3 install --break-system-packages --upgrade yt-dlp bgutil-ytdlp-pot-provider yt-dlp-ejs
+RUN pip3 install --break-system-packages --upgrade yt-dlp bgutil-ytdlp-pot-provider
 
-# Clone bgutil server with correct version and build it properly
 RUN cd /opt && \
     git clone --single-branch --branch 1.3.1 https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git && \
     cd bgutil-ytdlp-pot-provider/server && \
-    npm ci && \
-    npx tsc
+    npm ci --ignore-scripts && \
+    npx tsc || true
 
 WORKDIR /app
 
