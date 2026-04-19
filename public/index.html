@@ -205,7 +205,7 @@ let entries = [];
 
 // ── URL Parser ──────────────────────────────────────────────────────────────
 function extractIds(text) {
-  const re = /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/g;
+  const re = /(?:(?:music\.)?youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/g;
   const ids = [], seen = new Set();
   let m;
   while ((m = re.exec(text)) !== null) {
@@ -283,10 +283,7 @@ async function convertAll() {
 
 // ── Download ────────────────────────────────────────────────────────────────
 function downloadTrack(entry) {
-  const a = document.createElement("a");
-  a.href = entry.url;
-  a.download = `${entry.title || entry.id}.mp3`;
-  a.click();
+  window.open(entry.url, "_blank");
 }
 
 function downloadAll() {
