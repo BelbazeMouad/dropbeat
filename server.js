@@ -43,7 +43,6 @@ app.get("/api/info", async (req, res) => {
   }
 });
 
-// Convert endpoint - returns JSON with download path
 app.get("/api/convert", async (req, res) => {
   const { id } = req.query;
   if (!id || !/^[A-Za-z0-9_-]{11}$/.test(id)) {
@@ -55,14 +54,8 @@ app.get("/api/convert", async (req, res) => {
 
   try {
     await new Promise((resolve, reject) => {
-      const args = [];
-
-      if (fs.existsSync(COOKIES_PATH)) {
-        args.push("--cookies", COOKIES_PATH);
-      }
-
-      args.push(
-        "--extractor-args", "youtube:player_client=mweb",
+      const args = [
+        "--cookies", COOKIES_PATH,
         "-f", "bestaudio/best",
         "-x",
         "--audio-format", "mp3",
@@ -76,7 +69,7 @@ app.get("/api/convert", async (req, res) => {
         "--sleep-requests", "2",
         "-o", outputTemplate,
         `https://www.youtube.com/watch?v=${id}`,
-      );
+      ];
 
       console.log(`Converting ${id}...`);
       const proc = spawn("yt-dlp", args, { timeout: 180000 });
@@ -103,32 +96,24 @@ app.get("/api/convert", async (req, res) => {
   }
 });
 
-// Download endpoint - streams the file directly
 app.get("/api/download/:filename", (req, res) => {
   const { filename } = req.params;
-  
-  // Security check
   if (!/^[A-Za-z0-9_-]+\.mp3$/.test(filename)) {
     return res.status(400).send("Invalid filename");
   }
-  
   const filePath = path.join(TMP_DIR, filename);
-  
   if (!fs.existsSync(filePath)) {
-    return res.status(404).send("File expired. Please convert again.");
+    return res.status(404).send("File expired. Convert again.");
   }
-
   try {
     const stat = fs.statSync(filePath);
     res.writeHead(200, {
       "Content-Type": "audio/mpeg",
       "Content-Length": stat.size,
       "Content-Disposition": `attachment; filename="${filename}"`,
-      "Accept-Ranges": "bytes",
     });
     fs.createReadStream(filePath).pipe(res);
   } catch (err) {
-    console.error("Download error:", err);
     res.status(500).send("Download failed");
   }
 });
@@ -136,10 +121,4 @@ app.get("/api/download/:filename", (req, res) => {
 app.listen(PORT, () => {
   console.log(`DROPBEAT running on port ${PORT}`);
   console.log(`Cookies: ${fs.existsSync(COOKIES_PATH) ? "LOADED" : "NOT FOUND"}`);
-  console.log(`Tmp dir: ${TMP_DIR}`);
-  // List existing files
-  try {
-    const files = fs.readdirSync(TMP_DIR);
-    console.log(`Files in tmp: ${files.length}`);
-  } catch {}
 });
